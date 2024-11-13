@@ -1,0 +1,63 @@
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.DeliverCallback;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class RabbitMqIso8583Parser {
+    private static final String QUEUE_NAME = "tcp_messages_queue";
+
+    public static void main(String[] args) {
+        // RabbitMQ Bağlantısı İçin Fabrika Ayarı
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost("localhost");  // RabbitMQ sunucu adresi
+
+        try (Connection connection = factory.newConnection();
+             Channel channel = connection.createChannel()) {
+
+            channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+            System.out.println("RabbitMQ kuyruğundan mesaj dinleniyor...");
+
+            DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+                String message = new String(delivery.getBody(), "UTF-8");
+                System.out.println("Kuyruktan alınan mesaj: " + message);
+
+                // ISO 8583 Mesajını Parse Et
+                Map<String, String> parsedMessage = parseIso8583Message(message);
+                System.out.println("Parsed ISO 8583 Message: " + parsedMessage);
+            };
+
+            channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> { });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Map<String, String> parseIso8583Message(String message) {
+        Map<String, String> parsedData = new HashMap<>();
+
+        try {
+            // MTI (Message Type Indicator)
+            String mti = message.substring(0, 4);
+            parsedData.put("MTI", mti);
+
+            // Bitmap (Primary Bitmap)
+            String primaryBitmapHex = message.substring(4, 20);
+            parsedData.put("Primary Bitmap", primaryBitmapHex);
+
+            // Dummy example parsing for fields based on the bitmap
+            // (Gerçek parse işlemleri, bitmap'e bağlı olarak alanların dinamik şekilde ayrıştırılması gerekir)
+            String fieldData = message.substring(20);
+            parsedData.put("Field Data", fieldData);
+
+            // Bu noktada, bitmap'e göre field'ların parse edilmesi gerekiyor
+            // Bitmap'i binary olarak parse edip, hangi alanların var olduğunu ve bu alanların içeriklerini çözebilirsiniz.
+        } catch (Exception e) {
+            System.out.println("Mesaj parse edilirken hata oluştu: " + e.getMessage());
+        }
+
+        return parsedData;
+    }
+}
