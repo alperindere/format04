@@ -1,0 +1,123 @@
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.stub.StreamObserver;
+
+import javax.annotation.PostConstruct;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+@SpringBootApplication
+public class TcpToRabbitMqGrpcApplication {
+    private static final String QUEUE_NAME = "grpc_tcp_messages_queue";
+    private static final int PORT = 12345;  // TCP/IP port
+    private static final int GRPC_PORT = 50051;  // gRPC server port
+
+    public static void main(String[] args) {
+        SpringApplication.run(TcpToRabbitMqGrpcApplication.class, args);
+    }
+
+    @PostConstruct
+    public void startTcpListener() throws Exception {
+        // RabbitMQ Bağlantısı İçin Fabrika Ayarı
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost("localhost");  // RabbitMQ sunucu adresi
+
+        // RabbitMQ bağlantısı ve kanal oluşturma
+        Connection connection = factory.newConnection();
+        Channel channel = connection.createChannel();
+        channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+
+        // gRPC sunucusunu başlat
+        Server grpcServer = ServerBuilder.forPort(GRPC_PORT)
+                .addService(new GrpcMessageService(channel))
+                .build()
+                .start();
+        System.out.println("gRPC sunucusu port " + GRPC_PORT + " üzerinde çalışıyor...");
+
+        // TCP/IP soket dinleme işlemi
+        new Thread(() -> {
+            try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+                System.out.println("TCP/IP port " + PORT + " dinleniyor...");
+
+                while (true) {
+                    Socket clientSocket = serverSocket.accept();
+                    System.out.println("Yeni bir bağlantı kabul edildi: " + clientSocket.getInetAddress());
+
+                    // Mesajı oku
+                    BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                    String incomingMessage;
+                    while ((incomingMessage = in.readLine()) != null) {
+                        System.out.println("Gelen Mesaj: " + incomingMessage);
+                        // gRPC üzerinden mesajı RabbitMQ'ya gönder
+                        GrpcMessageService.sendMessageToRabbitMQ(incomingMessage);
+                    }
+                    clientSocket.close();
+                    System.out.println("Bağlantı sonlandırıldı.");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+
+        // gRPC sunucusunu beklet
+        grpcServer.awaitTermination();
+    }
+
+    @RestController
+    static class GrpcMessageService extends MessageServiceGrpc.MessageServiceImplBase {
+        private static Channel rabbitChannel;
+
+        public GrpcMessageService(Channel channel) {
+            rabbitChannel = channel;
+        }
+
+        @Override
+        public void sendMessage(MessageRequest request, StreamObserver<MessageResponse> responseObserver) {
+            String message = request.getMessage();
+            try {
+                rabbitChannel.basicPublish("", QUEUE_NAME, null, message.getBytes("UTF-8"));
+                System.out.println("Mesaj RabbitMQ kuyruğuna bırakıldı: " + message);
+                MessageResponse response = MessageResponse.newBuilder()
+                        .setStatus("Mesaj başarıyla kuyruğa bırakıldı")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                e.printStackTrace();
+                responseObserver.onError(e);
+            }
+        }
+
+        public static void sendMessageToRabbitMQ(String message) {
+            // gRPC sunucusu üzerinden gelen mesajı RabbitMQ'ya bırakma
+            MessageRequest request = MessageRequest.newBuilder().setMessage(message).build();
+            MessageServiceGrpc.MessageServiceStub asyncStub = MessageServiceGrpc.newStub(null);
+            asyncStub.sendMessage(request, new StreamObserver<MessageResponse>() {
+                @Override
+                public void onNext(MessageResponse value) {
+                    System.out.println(value.getStatus());
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    t.printStackTrace();
+                }
+
+                @Override
+                public void onCompleted() {
+                    System.out.println("Mesaj gönderimi tamamlandı.");
+                }
+            });
+        }
+    }
+}
