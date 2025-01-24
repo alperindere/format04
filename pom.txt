@@ -1,3 +1,67 @@
+using System;
+using System.Security.Cryptography;
+using System.Text;
+
+class AesKcvCalculator
+{
+    public static string CalculateKcv(string hexKey)
+    {
+        try
+        {
+            // Anahtarı byte dizisine çevir
+            byte[] keyBytes = HexStringToByteArray(hexKey);
+
+            // Şifreleme nesnesi oluştur
+            using (Aes aes = Aes.Create())
+            {
+                aes.Key = keyBytes;
+                aes.Mode = CipherMode.ECB; // ECB modunu kullan
+                aes.Padding = PaddingMode.None;
+
+                // Boş (zeroed) bir veri bloğunu şifrele
+                byte[] zeroBlock = new byte[16]; // AES blok boyutu: 16 byte
+                ICryptoTransform encryptor = aes.CreateEncryptor();
+                byte[] encryptedBlock = encryptor.TransformFinalBlock(zeroBlock, 0, zeroBlock.Length);
+
+                // İlk 6 haneyi hex olarak al ve döndür
+                return BitConverter.ToString(encryptedBlock).Replace("-", "").Substring(0, 6);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Hata: {ex.Message}");
+            return null;
+        }
+    }
+
+    // Hexadecimal string'i byte array'e çeviren yardımcı metod
+    private static byte[] HexStringToByteArray(string hex)
+    {
+        int length = hex.Length;
+        byte[] bytes = new byte[length / 2];
+
+        for (int i = 0; i < length; i += 2)
+        {
+            bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
+        }
+
+        return bytes;
+    }
+
+    static void Main(string[] args)
+    {
+        Console.Write("AES Key (Hex): ");
+        string hexKey = Console.ReadLine();
+
+        string kcv = CalculateKcv(hexKey);
+        if (kcv != null)
+        {
+            Console.WriteLine($"KCV: {kcv}");
+        }
+    }
+}
+
+
 <dependency>
     <groupId>redis.clients</groupId>
     <artifactId>jedis</artifactId>
