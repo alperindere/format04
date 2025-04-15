@@ -1,0 +1,33 @@
+#include <iostream>
+#include <bitset>
+#include <vector>
+
+std::vector<int> resolveBitmapFields(const uint8_t* bitmapBytes, size_t byteCount = 3) {
+    std::vector<int> activeFields;
+
+    for (size_t byteIdx = 0; byteIdx < byteCount; ++byteIdx) {
+        uint8_t currentByte = bitmapBytes[byteIdx];
+        for (int bit = 0; bit < 8; ++bit) {
+            if (currentByte & (1 << (7 - bit))) {  // MSB first
+                int fieldNumber = byteIdx * 8 + bit + 1;  // field numbers start from 1
+                activeFields.push_back(fieldNumber);
+            }
+        }
+    }
+
+    return activeFields;
+}
+
+int main() {
+    // Örnek: 3-byte bitmap (hex: E2 40 00)
+    uint8_t bitmap[3] = { 0xE2, 0x40, 0x00 };  // binary: 11100010 01000000 00000000
+
+    auto fields = resolveBitmapFields(bitmap);
+
+    std::cout << "Aktif alanlar:" << std::endl;
+    for (int field : fields) {
+        std::cout << "F" << field << std::endl;
+    }
+
+    return 0;
+}
