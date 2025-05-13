@@ -1,0 +1,82 @@
+threadpool config
+
+@Configuration
+public class ThreadPoolConfig {
+
+    @Bean(name = "inboundExecutor")
+    public ThreadPoolTaskExecutor inboundExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(20);     // örnek: inbound için 20 thread
+        executor.setMaxPoolSize(40);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("Inbound-");
+        executor.initialize();
+        return executor;
+    }
+
+    @Bean(name = "outboundExecutor")
+    public ThreadPoolTaskExecutor outboundExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(10);     // örnek: outbound için 10 thread
+        executor.setMaxPoolSize(20);
+        executor.setQueueCapacity(50);
+        executor.setThreadNamePrefix("Outbound-");
+        executor.initialize();
+        return executor;
+    }
+}
+
+
+
+serviste kullanim
+
+
+@Service
+public class MyService {
+
+    private final ThreadPoolTaskExecutor inboundExecutor;
+    private final ThreadPoolTaskExecutor outboundExecutor;
+
+    @Autowired
+    public MyService(@Qualifier("inboundExecutor") ThreadPoolTaskExecutor inboundExecutor,
+                     @Qualifier("outboundExecutor") ThreadPoolTaskExecutor outboundExecutor) {
+        this.inboundExecutor = inboundExecutor;
+        this.outboundExecutor = outboundExecutor;
+    }
+
+    public void inboundMethod() {
+        inboundExecutor.execute(() -> {
+            // Burada dışarıdan gelen istekleri işleyen kod
+            System.out.println("Inbound işlem çalışıyor: " + Thread.currentThread().getName());
+        });
+    }
+
+    public void outboundMethod() {
+        outboundExecutor.execute(() -> {
+            // Burada başka servise çağrı yapan kod
+            System.out.println("Outbound işlem çalışıyor: " + Thread.currentThread().getName());
+        });
+    }
+}
+
+
+ornek cagrim kullanim
+
+@RestController
+public class TestController {
+
+    @Autowired
+    private MyService myService;
+
+    @GetMapping("/test-inbound")
+    public String testInbound() {
+        myService.inboundMethod();
+        return "Inbound çağrıldı";
+    }
+
+    @GetMapping("/test-outbound")
+    public String testOutbound() {
+        myService.outboundMethod();
+        return "Outbound çağrıldı";
+    }
+}
