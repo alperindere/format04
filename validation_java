@@ -1,0 +1,50 @@
+private void checkField(String value, int minLen, int maxLen, String errorCode, String errorMessage) {
+    if (value == null || value.length() < minLen || value.length() > maxLen) {
+        throw new ValidationException(errorCode, errorMessage);
+    }
+}
+
+
+checkField(input.getCountryCode(), 1, 2, ErrorCode.VAL_003, "CountryCode is invalid");
+checkField(input.getSupportedSchema(), 1, 10, ErrorCode.VAL_003, "SupportedSchema is invalid");
+checkField(input.getSupportedBrand(), 1, 1, ErrorCode.VAL_003, "SupportedBrand is invalid");
+checkField(input.getInstallmentNumber(), 1, 2, ErrorCode.VAL_003, "InstallmentNumber is invalid");
+checkField(input.getRrn(), 1, 12, ErrorCode.VAL_003, "RRN is invalid");
+checkField(input.getAmount(), 1, 12, ErrorCode.VAL_003, "Amount is invalid");
+checkField(input.getMerchantName(), 1, 50, ErrorCode.VAL_003, "MerchantName is invalid");
+checkField(input.getMerchantCity(), 1, 20, ErrorCode.VAL_003, "MerchantCity is invalid");
+checkField(input.getPostalCode(), 1, 10, ErrorCode.VAL_003, "PostalCode is invalid");
+// ve diğer alanlar...
+
+Map<String, ValidationRule> rules = Map.of(
+    "CountryCode", new ValidationRule(1, 2, ErrorCode.VAL_003, "CountryCode is invalid"),
+    "SupportedSchema", new ValidationRule(1, 10, ErrorCode.VAL_003, "SupportedSchema is invalid"),
+    // diğer kurallar...
+);
+
+for (Map.Entry<String, ValidationRule> entry : rules.entrySet()) {
+    String field = entry.getKey();
+    ValidationRule rule = entry.getValue();
+    String value = (String) PropertyUtils.getProperty(input, field);
+    checkField(value, rule.minLen, rule.maxLen, rule.errorCode, rule.errorMessage);
+}
+
+
+	•	javax.validation.constraints anotasyonları ile DTO’nun üzerine yaz.
+
+public class Input {
+    @NotNull
+    @Size(min=1, max=2)
+    private String countryCode;
+
+    @NotNull
+    @Size(min=1, max=10)
+    private String supportedSchema;
+
+    // ...
+}
+
+@PostMapping("/validate")
+public ResponseEntity<?> validate(@Valid @RequestBody Input input) {
+    // validasyon otomatik yapılır, hata varsa otomatik 400 döner
+}
