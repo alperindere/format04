@@ -1,0 +1,7 @@
+if (TryEnterCriticalSection(&cs)) {
+    // Kilit boştaydı, şimdi aldık
+    LeaveCriticalSection(&cs);
+    printf("Kilit boşta.\n");
+} else {
+    printf("Kilit şu anda başka bir thread tarafından tutuluyor.\n");
+}
