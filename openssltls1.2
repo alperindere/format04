@@ -1,0 +1,61 @@
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <cstring>
+#include <iostream>
+
+int main() {
+    const char* hostname = "your.server.com";
+    int port = 443;
+
+    // 1. OpenSSL başlat
+    SSL_library_init();
+    SSL_load_error_strings();
+    const SSL_METHOD* method = TLS_client_method(); // TLS 1.2+
+    SSL_CTX* ctx = SSL_CTX_new(method);
+
+    // Yalnızca TLS 1.2 kullan
+    SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+    SSL_CTX_set_max_proto_version(ctx, TLS1_2_VERSION);
+
+    // 2. Socket oluştur
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    sockaddr_in server_addr {};
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    inet_pton(AF_INET, "IP_ADDRESS_HERE", &server_addr.sin_addr);
+
+    // 3. Bağlan
+    if (connect(sock, (sockaddr*)&server_addr, sizeof(server_addr)) != 0) {
+        perror("Bağlantı hatası");
+        return 1;
+    }
+
+    // 4. TLS bağlantısı başlat
+    SSL* ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, sock);
+    if (SSL_connect(ssl) <= 0) {
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
+
+    std::cout << "TLS 1.2 bağlantısı başarılı.\n";
+
+    // 5. Veri gönder/al
+    const char* req = "GET / HTTP/1.1\r\nHost: your.server.com\r\nConnection: close\r\n\r\n";
+    SSL_write(ssl, req, strlen(req));
+
+    char buffer[4096];
+    int bytes;
+    while ((bytes = SSL_read(ssl, buffer, sizeof(buffer))) > 0) {
+        std::cout.write(buffer, bytes);
+    }
+
+    // 6. Temizlik
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    close(sock);
+    SSL_CTX_free(ctx);
+    return 0;
+}
