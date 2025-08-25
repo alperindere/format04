@@ -1,0 +1,39 @@
+SELECT s.sid,
+       s.serial#,
+       s.username,
+       s.program,
+       q.sql_text,
+       q.first_load_time,
+       q.last_active_time
+FROM   v$sql q
+JOIN   v$session s ON q.sql_id = s.sql_id
+WHERE  s.username IS NOT NULL
+ORDER BY q.last_active_time DESC;
+
+SELECT *
+FROM (
+    SELECT q.sql_id,
+           q.sql_text,
+           q.last_active_time
+    FROM   v$sql q
+    ORDER BY q.last_active_time DESC
+)
+WHERE ROWNUM <= 10;
+
+SELECT s.sid,
+       s.serial#,
+       s.username,
+       q.sql_text
+FROM   v$session s
+JOIN   v$sql q ON s.sql_id = q.sql_id
+WHERE  s.status = 'ACTIVE'
+  AND  s.username IS NOT NULL;
+
+SELECT sql_id,
+       sql_text,
+       status,
+       elapsed_time,
+       cpu_time,
+       executions
+FROM   v$sql_monitor
+ORDER BY last_refresh_time DESC;
