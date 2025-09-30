@@ -1,0 +1,1 @@
+PCI DSS bunu doğrudan “yasaktır” diye tanımlamaz ama Requirement 3 (Protect stored cardholder data) ve Requirement 6 (Develop and maintain secure systems and applications) kapsamında, kodun yetkisiz ortamlarda ifşası uyumsuzluk olarak değerlendirilebilir.
