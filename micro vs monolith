@@ -1,0 +1,38 @@
+1. Network Katmanı
+	•	Fiziksel/LAN ortamı:
+	•	Gecikme (latency) tipik olarak 0.1–1 ms civarındadır.
+	•	Bant genişliği genelde yüksek, jitter düşüktür.
+	•	Cloud ortamı:
+	•	Aynı region/availability zone içindeyseniz latency 1–3 ms seviyesinde olabilir.
+	•	Farklı bölgeler arası iletişimde (örn. İstanbul’daki client → Frankfurt cloud) gecikme 40–80 ms’lere çıkabilir.
+	•	Ağ üzerindeki jitter ve packet loss ihtimali biraz daha fazladır.
+
+⸻
+
+2. Uygulama Mimarisinin Etkisi
+	•	Lokal monolit:
+	•	Processler arası iletişim shared memory/IPC veya LAN üzerinden çok hızlıdır.
+	•	Cloud-native mikroservis:
+	•	Servisler HTTP/2, gRPC, mesaj kuyruğu (Kafka/RabbitMQ) ile konuşur.
+	•	Serialization/deserialization + TLS şifreleme + load balancer geçişleri ek gecikme yaratır.
+	•	Örneğin:
+	•	Lokal çağrı: <1 ms
+	•	gRPC çağrısı (aynı AZ, TLS ile): 2–5 ms
+	•	REST/HTTP çağrısı: 5–15 ms
+	•	Messaging (Kafka produce+consume): 10–20 ms tipik.
+
+⸻
+
+3. Performans Optimizasyonu
+	•	Co-location: Uygulama podları ile veritabanını aynı availability zone’da tut.
+	•	Connection pooling: DB bağlantılarını tekrar kullan.
+	•	gRPC tercih et: REST yerine daha az overhead.
+	•	Cache & CQRS: Sık okunan verileri Redis/Hazelcast ile önden tut.
+	•	Async işlemler: Her şeyi synchronous yapmak yerine event-driven yaklaş.
+
+⸻
+
+4. Sonuç
+	•	Cloud-native ortam mimariden gelen ek network hop’ları yüzünden genellikle birkaç ms daha yavaş çalışır.
+	•	Ancak doğru tasarım + cache + co-location ile bu farkı neredeyse sıfıra indirebilirsiniz.
+	•	Kritik finansal akışlarda (örneğin ISO-8583 transaction’larda) p99 gecikmeyi 50 ms altında tutmak cloud ortamda da mümkün.
