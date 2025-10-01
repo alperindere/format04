@@ -36,3 +36,36 @@
 	•	Cloud-native ortam mimariden gelen ek network hop’ları yüzünden genellikle birkaç ms daha yavaş çalışır.
 	•	Ancak doğru tasarım + cache + co-location ile bu farkı neredeyse sıfıra indirebilirsiniz.
 	•	Kritik finansal akışlarda (örneğin ISO-8583 transaction’larda) p99 gecikmeyi 50 ms altında tutmak cloud ortamda da mümkün.
+
+Katman (OSI)
+Lokal Fiziksel Sunucu
+Cloud-Native (Kubernetes, LB, TLS vb.)
+Farkın Nedeni
+L1 – Fiziksel
+Kablolu LAN, 1–10 Gbit/s, düşük hata oranı
+Cloud veri merkezi backbone (çok güçlü ama çok tenantlı)
+Fiziksel sunucuda tek tenant, cloud’da multi-tenant network
+L2 – Data Link
+Switch bazlı, <0.1 ms
+Sanallaştırılmış overlay (VXLAN, VPC, ENI) ek overhead
+Cloud’da encapsulation + overlay routing
+L3 – Network (IP)
+Yerel LAN: 0.1–1 ms
+Aynı AZ: 1–3 ms, farklı region: 40–80 ms
+Cloud’da routing hop sayısı artar
+L4 – Transport (TCP/UDP)
+TCP handshake çok hızlı, LAN jitter düşük
+TCP + TLS (TLS handshake + şifreleme overhead)
+TLS ile ~1–2 ms ek gecikme, CPU kullanımı artar
+L5 – Session
+Genelde yok (lokalde basit socket)
+LB/Service Mesh (Envoy, Istio) ek session katmanı
+LB health check + service discovery overhead
+L6 – Presentation
+Binary protokoller (ör. raw TCP) çok hızlı
+JSON/REST → 5–15 ms, gRPC/Protobuf → 2–5 ms
+Serialization/deserialization + payload boyutu
+L7 – Application
+Lokal IPC çağrıları: mikro-saniye
+Mikroservisler arası çağrı: 2–20 ms
+API Gateway, AuthN/Z, logging, tracing ov
